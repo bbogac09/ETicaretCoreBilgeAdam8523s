@@ -35,7 +35,10 @@ namespace Business.Models
         [Required(ErrorMessage = "{0} gereklidir!")]
         public int? KategoriId { get; set; }
 
-       
+        public byte[] Image { get; set; }
+        public string ImageExtension { get; set; }
+
+
         #endregion
 
         #region Sayfanın ihtiyacı

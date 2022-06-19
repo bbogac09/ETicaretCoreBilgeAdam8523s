@@ -10,7 +10,7 @@ using System.Globalization;
 
 namespace Business.Services
 {
-    public interface IUrunService :IService<UrunModel, Urun, ETicaretContext>
+    public interface IUrunService : IService<UrunModel, Urun, ETicaretContext>
     {
         #region Sayfalama
         int GetTotalRecordsCount(UrunFilterModel filtre);
@@ -18,6 +18,7 @@ namespace Business.Services
         List<int> GetPages(int toplamKayitSayisi, int sayfadakiKayitSayisi);
         List<string> GetExpressions();
         #endregion
+        void DeleteImage(int id);
     }
 
     public class UrunService : IUrunService
@@ -51,10 +52,12 @@ namespace Business.Services
                 KategoriId = model.KategoriId.Value,
                 SonKullanmaTarihi = model.SonKullanmaTarihi,
                 StokMiktari = model.StokMiktari.Value,
-                UrunMagazalar = model.MagazaIdleri.Select(magazaId => new UrunMagaza()
+                UrunMagazalar = model.MagazaIdleri?.Select(magazaId => new UrunMagaza()
                 {
                     MagazaId = magazaId
-                }).ToList()
+                }).ToList(),
+                Image = model.Image,
+                ImageExtension = model.ImageExtension?.ToLower()
             };
 
             // 1. yöntem:
@@ -170,7 +173,10 @@ namespace Business.Services
                             SonKullanmaTarihiDisplay = urun.SonKullanmaTarihi.HasValue ? urun.SonKullanmaTarihi.Value.ToString("yyyy-MM-dd") : "",
                             KategoriAdiDisplay = subKategoriler.Adi,
                             MagazaAdiDisplay = subMagazalar != null ? subMagazalar.Adi : "",
-                            MagazaId = subMagazalar != null ? subMagazalar.Id : 0
+                            MagazaId = subMagazalar != null ? subMagazalar.Id : 0,
+                            Image = urun.Image,
+                            ImageExtension = urun.ImageExtension,
+                            ImgSrcDisplay = urun.Image != null ? ((urun.ImageExtension == ".jpg" || urun.ImageExtension == ".jpeg" ? "data:image/jpeg;base64, " : "data:image/png;base64,") + Convert.ToBase64String(urun.Image)) : null
                         };
             return query;
         }
@@ -197,10 +203,16 @@ namespace Business.Services
             entity.KategoriId = model.KategoriId.Value;
             entity.SonKullanmaTarihi = model.SonKullanmaTarihi;
             entity.StokMiktari = model.StokMiktari.Value;
-            entity.UrunMagazalar = model.MagazaIdleri.Select(magazaId => new UrunMagaza()
+            entity.UrunMagazalar = model.MagazaIdleri?.Select(magazaId => new UrunMagaza()
             {
                 MagazaId = magazaId
             }).ToList();
+            if (model.Image != null)
+            {
+                entity.Image = model.Image;
+                entity.ImageExtension = model.ImageExtension.ToLower();
+            }
+
             Repo.Update(entity);
             return new SuccessResult();
         }
@@ -236,7 +248,7 @@ namespace Business.Services
 
             switch (expression)
             {
-                case "Ürün Adı": 
+                case "Ürün Adı":
                     query = isDirectionAscending ? query.OrderBy(q => q.Adi) : query.OrderByDescending(q => q.Adi);
                     break;
                 case "Birim Fiyatı":
@@ -268,11 +280,18 @@ namespace Business.Services
             }
             return sayfalar;
         }
+        public void DeleteImage(int id)
+        {
+            var entity = Repo.Query().SingleOrDefault( u => u.Id == id);
+            entity.Image = null;
+            entity.ImageExtension = null;
+            Repo.Update(entity);
+        }
         #endregion
         public List<string> GetExpressions() => new List<string>()
         {
             "Ürün Adı", "Birim Fiyatı", "Son Kullanma Tarihi"
         };
     }
-    
+
 }
